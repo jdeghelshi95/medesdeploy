@@ -6,7 +6,7 @@
 
 import { ChevronDown, Play, MapPin } from "lucide-react";
 
-const HERO_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663419143126/P3xcbFesjEMNx5mGkkTWTm/medes-hero-bg-8i4rjqMQ9sLcMmxQ79njdF.webp";
+const HERO_BG = "https://www.dropbox.com/scl/fi/ja664ebhtdj8lgidhgw4q/DSC_7218.jpg?rlkey=8inxb3dkpd65l4a87impieh2t&e=1&st=kb7gu2si&raw=1";
 const CHURCH_CENTER_URL = "https://medes.churchcenter.com";
 
 export default function HeroSection() {
@@ -77,7 +77,7 @@ export default function HeroSection() {
           {/* Service times quick bar */}
           <div className="mt-12 flex flex-wrap gap-3">
             {[
-              { day: "Dom", time: "8:30 AM · 11:00 AM · 5:00 PM" },
+              { day: "Dom", time: "8:30 AM · 11:00 AM · 2:00 PM" },
               { day: "Sáb", time: "7:00 PM" },
               { day: "Vie", time: "7:30 PM Jóvenes" },
             ].map((s) => (

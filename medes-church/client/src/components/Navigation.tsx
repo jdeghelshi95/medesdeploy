@@ -12,7 +12,6 @@ const CHURCH_CENTER_URL = "https://medes.churchcenter.com";
 const navLinks = [
   { label: "Inicio", href: "#inicio" },
   { label: "Predicas", href: "#predicas" },
-  { label: "Biblia", href: "#biblia" },
   { label: "Visión", href: "#vision" },
   { label: "Servicios", href: "#servicios" },
   { label: "Visitanos", href: "#visitanos" },
