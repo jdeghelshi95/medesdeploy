@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect } from "react";
+import medesLogo from "../assets/MEDES 2019.PNG";
 import { Menu, X, Heart, Calendar, Home, BookOpen, Users, MapPin } from "lucide-react";
 
 const CHURCH_CENTER_URL = "https://medes.churchcenter.com";
@@ -20,11 +21,32 @@ const navLinks = [
 export default function Navigation() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<string>("#inicio");
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const sectionIds = navLinks.map((l) => l.href.replace("#", ""));
+    const observers: IntersectionObserver[] = [];
+
+    sectionIds.forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) setActiveSection(`#${id}`);
+        },
+        { threshold: 0.35 }
+      );
+      observer.observe(el);
+      observers.push(observer);
+    });
+
+    return () => observers.forEach((o) => o.disconnect());
   }, []);
 
   const handleNavClick = (href: string) => {
@@ -50,33 +72,39 @@ export default function Navigation() {
             <a
               href="#inicio"
               onClick={(e) => { e.preventDefault(); handleNavClick("#inicio"); }}
-              className="flex items-center gap-3 group"
+              className="flex items-center group"
             >
-              <div className="w-9 h-9 rounded-full flame-gradient flex items-center justify-center shadow-lg shadow-orange-900/30 group-hover:scale-105 transition-transform">
-                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2C12 2 6 8 6 13C6 16.3 8.7 19 12 19C15.3 19 18 16.3 18 13C18 8 12 2 12 2ZM12 17C9.8 17 8 15.2 8 13C8 10.5 10 7.2 12 4.8C14 7.2 16 10.5 16 13C16 15.2 14.2 17 12 17Z"/>
-                  <path d="M12 9C12 9 9 12 9 14C9 15.7 10.3 17 12 17C13.7 17 15 15.7 15 14C15 12 12 9 12 9Z" opacity="0.6"/>
-                </svg>
-              </div>
-              <div className="hidden sm:block">
-                <span className="text-white font-['Oswald'] font-700 text-xl tracking-wider uppercase">MEDES</span>
-                <span className="text-white/50 font-['Nunito_Sans'] text-xs tracking-widest uppercase ml-1.5">Church</span>
-              </div>
+              <img
+                src={medesLogo}
+                alt="MEDES Church"
+                className="h-12 w-auto group-hover:scale-105 transition-transform"
+              />
             </a>
 
             {/* Desktop Nav Links */}
             <div className="hidden lg:flex items-center gap-8">
-              {navLinks.map((link) => (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  onClick={(e) => { e.preventDefault(); handleNavClick(link.href); }}
-                  className="text-white/70 hover:text-white font-['Nunito_Sans'] text-sm font-600 tracking-wide uppercase transition-colors relative group"
-                >
-                  {link.label}
-                  <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 flame-gradient group-hover:w-full transition-all duration-300" />
-                </a>
-              ))}
+              {navLinks.map((link) => {
+                const isActive = activeSection === link.href;
+                return (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    onClick={(e) => { e.preventDefault(); handleNavClick(link.href); }}
+                    className={`font-['Nunito_Sans'] text-sm font-600 tracking-wide uppercase transition-colors relative group ${
+                      isActive ? "text-white" : "text-white/70 hover:text-white"
+                    }`}
+                  >
+                    {link.label}
+                    <span
+                      className={`absolute -bottom-0.5 left-0 h-0.5 transition-all duration-300 ${
+                        isActive
+                          ? "w-full bg-white shadow-[0_0_8px_2px_rgba(255,255,255,0.7)]"
+                          : "w-0 flame-gradient group-hover:w-full"
+                      }`}
+                    />
+                  </a>
+                );
+              })}
             </div>
 
             {/* Desktop CTA Buttons */}
@@ -126,16 +154,26 @@ export default function Navigation() {
           }`}
         >
           <div className="container py-6 flex flex-col gap-1">
-            {navLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                onClick={(e) => { e.preventDefault(); handleNavClick(link.href); }}
-                className="text-white/80 hover:text-white font-['Nunito_Sans'] text-base font-600 py-3 px-2 border-b border-white/5 hover:pl-4 transition-all uppercase tracking-wide"
-              >
-                {link.label}
-              </a>
-            ))}
+            {navLinks.map((link) => {
+              const isActive = activeSection === link.href;
+              return (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  onClick={(e) => { e.preventDefault(); handleNavClick(link.href); }}
+                  className={`font-['Nunito_Sans'] text-base font-600 py-3 px-2 border-b border-white/5 hover:pl-4 transition-all uppercase tracking-wide ${
+                    isActive ? "text-white" : "text-white/80 hover:text-white"
+                  }`}
+                >
+                  <span className="relative">
+                    {link.label}
+                    {isActive && (
+                      <span className="absolute -bottom-0.5 left-0 w-full h-0.5 bg-white shadow-[0_0_8px_2px_rgba(255,255,255,0.7)]" />
+                    )}
+                  </span>
+                </a>
+              );
+            })}
             <div className="flex gap-3 mt-4 pt-2">
               <a
                 href={`${CHURCH_CENTER_URL}/registrations`}
