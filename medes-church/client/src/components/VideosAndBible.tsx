@@ -462,7 +462,7 @@ export default function VideosAndBible() {
                   >
                     {Array.from({ length: totalChapters }, (_, i) => (
                       <option key={i} value={i} className="bg-[#1A1A1A]">
-                        Capítulo {i + 1}
+                        {i + 1}
                       </option>
                     ))}
                   </select>
@@ -479,7 +479,7 @@ export default function VideosAndBible() {
                     <option value={0} className="bg-[#1A1A1A]">Todos</option>
                     {allVerses.map(({ num }) => (
                       <option key={num} value={num} className="bg-[#1A1A1A]">
-                        Versículo {num}
+                       {num}
                       </option>
                     ))}
                   </select>
