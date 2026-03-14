@@ -21,8 +21,8 @@ export default function Home() {
       <Navigation />
       <HeroSection />
       <VideosAndBible />
-      <VisionSection />
       <CommunityGallery />
+      <VisionSection />
       <ServicesSection />
       <VisitSection />
       <GivingSection />
