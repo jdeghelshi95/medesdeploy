@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from "react";
-import medesLogo from "../assets/MEDES 2019.PNG";
+import medesLogo from "../assets/medes2019.png"
 import { Menu, X, Heart, Calendar, Home, BookOpen, Users, MapPin } from "lucide-react";
 
 const CHURCH_CENTER_URL = "https://medes.churchcenter.com";

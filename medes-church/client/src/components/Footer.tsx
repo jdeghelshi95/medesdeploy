@@ -6,7 +6,7 @@
 import { Heart, ExternalLink, Youtube, Instagram, Facebook, MapPin, Phone, Mail } from "lucide-react";
 
 const CHURCH_CENTER_URL = "https://medes.churchcenter.com";
-import medesLogo from "../assets/MEDES 2019.PNG";
+import medesLogo from "../assets/medes2019.png"
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
