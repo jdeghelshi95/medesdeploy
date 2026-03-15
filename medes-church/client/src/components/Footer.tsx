@@ -24,10 +24,7 @@ export default function Footer() {
           <div className="lg:col-span-1">
             <div className="flex items-center gap-3 mb-5">
               <div className="w-10 h-10 rounded-full flame-gradient flex items-center justify-center shadow-lg shadow-orange-900/30">
-                {/* <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2C12 2 6 8 6 13C6 16.3 8.7 19 12 19C15.3 19 18 16.3 18 13C18 8 12 2 12 2ZM12 17C9.8 17 8 15.2 8 13C8 10.5 10 7.2 12 4.8C14 7.2 16 10.5 16 13C16 15.2 14.2 17 12 17Z"/>
-                  <path d="M12 9C12 9 9 12 9 14C9 15.7 10.3 17 12 17C13.7 17 15 15.7 15 14C15 12 12 9 12 9Z" opacity="0.6"/>
-                </svg> */}
+             
                 <img
                 src={medesLogo}
                 alt="MEDES Church"
