@@ -25,11 +25,12 @@ export default function Footer() {
             <div className="flex items-center gap-3 mb-5">
               <div className="w-10 h-10 rounded-full flame-gradient flex items-center justify-center shadow-lg shadow-orange-900/30">
              
-                <img
+              <img>
                 src={medesLogo}
                 alt="MEDES Church"
                 className="h-10 w-full group-hover:scale-105 transition-transform"
-                />
+              </img>
+              
               </div>
               <div>
                 <span className="font-['Oswald'] font-700 text-white text-xl tracking-wider uppercase">MEDES</span>
