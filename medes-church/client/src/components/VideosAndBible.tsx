@@ -1,20 +1,20 @@
 /*
  * VideosAndBible — Urban Revival Design
  * YouTube video player (55%) + RVR1960 Bible reader (45%) side-by-side
- * Tabs: "Más Recientes" (5 latest) | "Pastor David" (5 top)
+ * Tabs: "Más Recientes" (5 latest) | "En Vivo" (only when live) | "Pastor David" (5 top)
  * Bible: Spanish book names mapped over English dataset
  *
- * Live Stream:
- *   - Detects if @medeschurch is currently live via CORS proxy scrape
- *   - If live: shows a full embedded live player at the top of the YouTube section
- *   - If not live: the live stream block is completely hidden
- *   - Polls every 3 minutes
+ * Live Stream tab behaviour:
+ *   - Polls @medeschurch/live every 3 minutes via CORS proxy
+ *   - Tab is completely hidden when the channel is not live
+ *   - Tab appears (with pulsing dot) only while a stream is active
+ *   - Clicking the tab embeds the live stream directly in the main player
  */
 
 import { useState, useEffect, useRef } from "react";
 import {
-  Play, ChevronLeft, ChevronRight, BookOpen, Search,
-  ExternalLink, Youtube, ChevronDown, User, Clock, Radio
+  Play, ChevronLeft, ChevronRight, BookOpen,
+  ExternalLink, Youtube, ChevronDown, User, Clock
 } from "lucide-react";
 
 const CHANNEL_ID = "UCbKclBCuOtMyYl7W853ZcuA";
@@ -79,15 +79,6 @@ const RECENT_VIDEOS: Video[] = [
   { id: "GfhCErhzXb4", title: "El Siempre Estuvo Alli | Profeta Ronny Oliveira", thumbnail: "https://i.ytimg.com/vi/GfhCErhzXb4/hqdefault.jpg", published: "Hace 4 meses", link: "https://www.youtube.com/watch?v=GfhCErhzXb4" },
 ];
 
-// 5 most recent livestream recordings
-const LIVESTREAM_VIDEOS: Video[] = [
-  { id: "pZDKbml8CCo", title: "Servicio de Oración 3/09/26", thumbnail: "https://i.ytimg.com/vi/pZDKbml8CCo/hqdefault.jpg", published: "En Vivo", link: "https://www.youtube.com/watch?v=pZDKbml8CCo" },
-  { id: "9DWE_KkQzxA", title: "Servicio Familiar 2PM", thumbnail: "https://i.ytimg.com/vi/9DWE_KkQzxA/hqdefault.jpg", published: "En Vivo", link: "https://www.youtube.com/watch?v=9DWE_KkQzxA" },
-  { id: "xRWFIQQf93I", title: "Servicio Familiar 11AM", thumbnail: "https://i.ytimg.com/vi/xRWFIQQf93I/hqdefault.jpg", published: "En Vivo", link: "https://www.youtube.com/watch?v=xRWFIQQf93I" },
-  { id: "yiQRSQW3XMY", title: "Servicio Familiar 8:30AM", thumbnail: "https://i.ytimg.com/vi/yiQRSQW3XMY/hqdefault.jpg", published: "En Vivo", link: "https://www.youtube.com/watch?v=yiQRSQW3XMY" },
-  { id: "XxjYbFTu0Ek", title: "Servicio General 7:00PM", thumbnail: "https://i.ytimg.com/vi/XxjYbFTu0Ek/hqdefault.jpg", published: "En Vivo", link: "https://www.youtube.com/watch?v=XxjYbFTu0Ek" },
-];
-
 // Pastor David's 5 most popular sermons
 const PASTOR_DAVID_VIDEOS: Video[] = [
   { id: "I9qLO60CZzc", title: "Dios Quiere Lo Primero | Pastor David Eghelshi", thumbnail: "https://i.ytimg.com/vi/I9qLO60CZzc/hqdefault.jpg", published: "Popular", link: "https://www.youtube.com/watch?v=I9qLO60CZzc" },
@@ -97,7 +88,7 @@ const PASTOR_DAVID_VIDEOS: Video[] = [
   { id: "2geOJx-1ndY", title: "Renovando Nuestro Servicio | Pastor David Eghelshi", thumbnail: "https://i.ytimg.com/vi/2geOJx-1ndY/hqdefault.jpg", published: "Popular", link: "https://www.youtube.com/watch?v=2geOJx-1ndY" },
 ];
 
-type VideoTab = "recent" | "livestream" | "pastor";
+type VideoTab = "recent" | "live" | "pastor";
 
 export default function VideosAndBible() {
   const [activeTab, setActiveTab] = useState<VideoTab>("recent");
@@ -120,11 +111,6 @@ export default function VideosAndBible() {
   const verseListRef = useRef<HTMLDivElement>(null);
   const verseRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
-  const currentTabVideos =
-    activeTab === "recent" ? recentVideos
-    : activeTab === "livestream" ? LIVESTREAM_VIDEOS
-    : PASTOR_DAVID_VIDEOS;
-
   // Detect live stream — polls every 3 minutes
   useEffect(() => {
     const checkLive = async () => {
@@ -135,7 +121,12 @@ export default function VideosAndBible() {
 
         const html = await res.text();
         const isLiveNow = html.includes('"isLive":true');
-        if (!isLiveNow) { setIsLive(false); return; }
+        if (!isLiveNow) {
+          // If we were on the live tab, switch back to recent
+          setActiveTab((prev) => (prev === "live" ? "recent" : prev));
+          setIsLive(false);
+          return;
+        }
 
         // Extract video ID adjacent to "isLive":true
         const videoIdMatch = html.match(
@@ -216,7 +207,6 @@ export default function VideosAndBible() {
         const buffer = await res.arrayBuffer();
         const text = new TextDecoder("utf-8").decode(buffer).replace(/^\uFEFF/, "");
         const raw = JSON.parse(text);
-        // Inject Spanish names
         const enriched: BibleBook[] = raw.map((b: any) => ({
           ...b,
           spanishName: SPANISH_BOOK_NAMES[b.name] || b.name,
@@ -259,8 +249,9 @@ export default function VideosAndBible() {
 
   const handleTabChange = (tab: VideoTab) => {
     setActiveTab(tab);
-    const videos = tab === "recent" ? recentVideos : PASTOR_DAVID_VIDEOS;
-    setSelectedVideo(videos[0]);
+    if (tab === "recent") setSelectedVideo(recentVideos[0]);
+    if (tab === "pastor") setSelectedVideo(PASTOR_DAVID_VIDEOS[0]);
+    // "live" tab uses the iframe directly — no selectedVideo needed
   };
 
   const handleVideoSelect = (video: Video) => {
@@ -285,6 +276,10 @@ export default function VideosAndBible() {
       verseListRef.current.scrollTop = 0;
     }
   }, [selectedVerse, selectedChapter, selectedBookIdx]);
+
+  // Thumbnail grid for non-live tabs
+  const currentTabVideos =
+    activeTab === "recent" ? recentVideos : PASTOR_DAVID_VIDEOS;
 
   return (
     <section id="predicas" className="bg-[#0F0F0F] py-16 lg:py-24">
@@ -314,93 +309,67 @@ export default function VideosAndBible() {
           </a>
         </div>
 
-        {/* ── LIVE STREAM EMBED (only visible when live) ── */}
-        {isLive && liveData && (
-          <div className="mb-8 rounded-2xl overflow-hidden border border-red-500/40 shadow-2xl shadow-red-900/30"
-               style={{ animation: "fadeInDown 0.5s ease-out" }}>
-            <style>{`
-              @keyframes fadeInDown {
-                from { opacity: 0; transform: translateY(-12px); }
-                to   { opacity: 1; transform: translateY(0); }
-              }
-            `}</style>
-
-            {/* Live header bar */}
-            <div className="flex items-center justify-between px-4 py-2.5 bg-[#111] border-b border-red-500/30">
-              <div className="flex items-center gap-2.5">
-                {/* Pulsing dot */}
-                <div className="relative flex-shrink-0">
-                  <div className="w-2.5 h-2.5 bg-red-500 rounded-full" />
-                  <div className="absolute inset-0 w-2.5 h-2.5 bg-red-500 rounded-full animate-ping opacity-70" />
-                </div>
-                <span className="font-['Oswald'] font-700 text-red-500 text-xs uppercase tracking-widest">
-                  En Vivo Ahora
-                </span>
-                <span className="hidden sm:block w-px h-4 bg-white/15" />
-                <span className="hidden sm:block font-['Nunito_Sans'] text-white/70 text-sm truncate max-w-xs">
-                  {liveData.title}
-                </span>
-              </div>
-              <a
-                href={`https://www.youtube.com/watch?v=${liveData.videoId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-['Nunito_Sans'] font-700 text-xs transition-colors shadow-lg shadow-red-900/40 whitespace-nowrap"
-              >
-                <Radio className="w-3 h-3" />
-                Abrir en YouTube
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-
-            {/* Embedded live player */}
-            <div className="relative bg-black aspect-video">
-              <iframe
-                key={liveData.videoId}
-                src={`https://www.youtube.com/embed/${liveData.videoId}?autoplay=1&rel=0&modestbranding=1`}
-                title={liveData.title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className="w-full h-full"
-              />
-            </div>
-
-            {/* Bottom flame accent */}
-            <div className="h-0.5 bg-gradient-to-r from-red-600 via-red-400 to-red-600 animate-pulse" />
-          </div>
-        )}
-
         {/* Main Layout: Video + Bible */}
         <div className="flex flex-col xl:flex-row gap-6">
           {/* LEFT: Video Player + Tabs + Thumbnails (55%) */}
           <div className="xl:w-[55%] flex flex-col gap-4">
+
             {/* Main Player */}
             <div className="relative bg-[#1A1A1A] rounded-xl overflow-hidden aspect-video shadow-2xl shadow-black/50">
-              <iframe
-                key={selectedVideo.id}
-                src={`https://www.youtube.com/embed/${selectedVideo.id}?autoplay=0&rel=0&modestbranding=1`}
-                title={selectedVideo.title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className="w-full h-full"
-              />
+              {activeTab === "live" && liveData ? (
+                /* Live stream embed */
+                <iframe
+                  key={`live-${liveData.videoId}`}
+                  src={`https://www.youtube.com/embed/${liveData.videoId}?autoplay=1&rel=0&modestbranding=1`}
+                  title={liveData.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full"
+                />
+              ) : (
+                /* Regular video embed */
+                <iframe
+                  key={selectedVideo.id}
+                  src={`https://www.youtube.com/embed/${selectedVideo.id}?autoplay=0&rel=0&modestbranding=1`}
+                  title={selectedVideo.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full"
+                />
+              )}
             </div>
 
-            {/* Selected video title */}
+            {/* Video / Live title */}
             <div className="px-1">
-              <h3 className="font-['Oswald'] font-600 text-white text-xl leading-tight line-clamp-2">
-                {selectedVideo.title}
-              </h3>
-              {selectedVideo.published && (
-                <p className="flex items-center gap-1.5 text-white/40 font-['Nunito_Sans'] text-sm mt-1">
-                  <Clock className="w-3.5 h-3.5" />
-                  {selectedVideo.published}
-                </p>
+              {activeTab === "live" && liveData ? (
+                <div className="flex items-center gap-2.5">
+                  {/* Pulsing live dot */}
+                  <div className="relative flex-shrink-0">
+                    <div className="w-2.5 h-2.5 bg-red-500 rounded-full" />
+                    <div className="absolute inset-0 w-2.5 h-2.5 bg-red-500 rounded-full animate-ping opacity-70" />
+                  </div>
+                  <h3 className="font-['Oswald'] font-600 text-white text-xl leading-tight line-clamp-2">
+                    {liveData.title}
+                  </h3>
+                </div>
+              ) : (
+                <>
+                  <h3 className="font-['Oswald'] font-600 text-white text-xl leading-tight line-clamp-2">
+                    {selectedVideo.title}
+                  </h3>
+                  {selectedVideo.published && (
+                    <p className="flex items-center gap-1.5 text-white/40 font-['Nunito_Sans'] text-sm mt-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      {selectedVideo.published}
+                    </p>
+                  )}
+                </>
               )}
             </div>
 
             {/* Tabs */}
             <div className="flex gap-1 bg-[#1A1A1A] rounded-lg p-1 border border-white/8">
+              {/* Más Recientes */}
               <button
                 onClick={() => handleTabChange("recent")}
                 className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md font-['Nunito_Sans'] font-600 text-xs sm:text-sm transition-all ${
@@ -413,19 +382,28 @@ export default function VideosAndBible() {
                 <span className="hidden sm:inline">Más Recientes</span>
                 <span className="sm:hidden">Recientes</span>
               </button>
-              <button
-                onClick={() => handleTabChange("livestream")}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md font-['Nunito_Sans'] font-600 text-xs sm:text-sm transition-all ${
-                  activeTab === "livestream"
-                    ? "flame-gradient text-white shadow-md"
-                    : "text-white/50 hover:text-white"
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                  activeTab === "livestream" ? "bg-white" : "bg-red-500"
-                }`} />
-                En Vivo
-              </button>
+
+              {/* En Vivo — only rendered when the channel is live */}
+              {isLive && (
+                <button
+                  onClick={() => handleTabChange("live")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md font-['Nunito_Sans'] font-600 text-xs sm:text-sm transition-all ${
+                    activeTab === "live"
+                      ? "bg-red-600 text-white shadow-md"
+                      : "text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  }`}
+                >
+                  {/* Pulsing dot */}
+                  <span className="relative flex-shrink-0 w-2 h-2">
+                    <span className="absolute inset-0 bg-red-500 rounded-full animate-ping opacity-75" />
+                    <span className={`relative block w-2 h-2 rounded-full ${activeTab === "live" ? "bg-white" : "bg-red-500"}`} />
+                  </span>
+                  <span className="hidden sm:inline">En Vivo Ahora</span>
+                  <span className="sm:hidden">En Vivo</span>
+                </button>
+              )}
+
+              {/* Pastor David */}
               <button
                 onClick={() => handleTabChange("pastor")}
                 className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md font-['Nunito_Sans'] font-600 text-xs sm:text-sm transition-all ${
@@ -440,45 +418,61 @@ export default function VideosAndBible() {
               </button>
             </div>
 
-            {/* Video Thumbnails Grid */}
-            {!loadingVideos ? (
-              <div className="grid grid-cols-5 gap-2">
-                {currentTabVideos.map((video) => (
-                  <button
-                    key={video.id}
-                    onClick={() => handleVideoSelect(video)}
-                    className={`relative group rounded-lg overflow-hidden aspect-video bg-[#1A1A1A] transition-all ${
-                      selectedVideo.id === video.id
-                        ? "ring-2 ring-[#FF6B35] scale-[1.03]"
-                        : "hover:scale-[1.03] hover:ring-1 hover:ring-white/20"
-                    }`}
-                  >
-                    <img
-                      src={video.thumbnail}
-                      alt={video.title}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors" />
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="w-7 h-7 rounded-full flame-gradient flex items-center justify-center shadow-lg">
-                        <Play className="w-3 h-3 fill-white text-white ml-0.5" />
+            {/* Thumbnail grid — hidden on live tab */}
+            {activeTab !== "live" && (
+              !loadingVideos ? (
+                <div className="grid grid-cols-5 gap-2">
+                  {currentTabVideos.map((video) => (
+                    <button
+                      key={video.id}
+                      onClick={() => handleVideoSelect(video)}
+                      className={`relative group rounded-lg overflow-hidden aspect-video bg-[#1A1A1A] transition-all ${
+                        selectedVideo.id === video.id
+                          ? "ring-2 ring-[#FF6B35] scale-[1.03]"
+                          : "hover:scale-[1.03] hover:ring-1 hover:ring-white/20"
+                      }`}
+                    >
+                      <img
+                        src={video.thumbnail}
+                        alt={video.title}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors" />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="w-7 h-7 rounded-full flame-gradient flex items-center justify-center shadow-lg">
+                          <Play className="w-3 h-3 fill-white text-white ml-0.5" />
+                        </div>
                       </div>
-                    </div>
-                    <div className="absolute bottom-0 left-0 right-0 p-1 bg-gradient-to-t from-black/80 to-transparent">
-                      <p className="text-white font-['Nunito_Sans'] text-[9px] leading-tight line-clamp-2">
-                        {video.title}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-5 gap-2">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="aspect-video bg-[#1A1A1A] rounded-lg animate-pulse" />
-                ))}
-              </div>
+                      <div className="absolute bottom-0 left-0 right-0 p-1 bg-gradient-to-t from-black/80 to-transparent">
+                        <p className="text-white font-['Nunito_Sans'] text-[9px] leading-tight line-clamp-2">
+                          {video.title}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-5 gap-2">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="aspect-video bg-[#1A1A1A] rounded-lg animate-pulse" />
+                  ))}
+                </div>
+              )
+            )}
+
+            {/* On live tab: show an "Open in YouTube" link instead of thumbnails */}
+            {activeTab === "live" && liveData && (
+              <a
+                href={`https://www.youtube.com/watch?v=${liveData.videoId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 py-3 rounded-lg border border-red-500/30 hover:border-red-500/60 text-red-400 hover:text-red-300 font-['Nunito_Sans'] text-sm font-600 transition-all group"
+              >
+                <Youtube className="w-4 h-4" />
+                Abrir transmisión en YouTube
+                <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </a>
             )}
 
             {/* Channel CTA */}
