@@ -3,16 +3,24 @@
  * YouTube video player (55%) + RVR1960 Bible reader (45%) side-by-side
  * Tabs: "Más Recientes" (5 latest) | "Pastor David" (5 top)
  * Bible: Spanish book names mapped over English dataset
+ *
+ * Live Stream:
+ *   - Detects if @medeschurch is currently live via CORS proxy scrape
+ *   - If live: shows a full embedded live player at the top of the YouTube section
+ *   - If not live: the live stream block is completely hidden
+ *   - Polls every 3 minutes
  */
 
 import { useState, useEffect, useRef } from "react";
 import {
   Play, ChevronLeft, ChevronRight, BookOpen, Search,
-  ExternalLink, Youtube, ChevronDown, User, Clock
+  ExternalLink, Youtube, ChevronDown, User, Clock, Radio
 } from "lucide-react";
 
 const CHANNEL_ID = "UCbKclBCuOtMyYl7W853ZcuA";
 const CHANNEL_URL = "https://www.youtube.com/@medeschurch";
+const LIVE_PAGE_URL = "https://www.youtube.com/@medeschurch/live";
+const CORS_PROXY = "https://api.codetabs.com/v1/proxy?quest=";
 const BIBLE_API = "https://raw.githubusercontent.com/thiagobodruk/bible/master/json/es_rvr.json";
 
 interface Video {
@@ -28,6 +36,11 @@ interface BibleBook {
   name: string;
   spanishName: string;
   chapters: string[][];
+}
+
+interface LiveData {
+  videoId: string;
+  title: string;
 }
 
 // Spanish book name mapping (the JSON has English names but Spanish verse text)
@@ -92,6 +105,10 @@ export default function VideosAndBible() {
   const [selectedVideo, setSelectedVideo] = useState<Video>(RECENT_VIDEOS[0]);
   const [loadingVideos, setLoadingVideos] = useState(true);
 
+  // Live stream state
+  const [isLive, setIsLive] = useState(false);
+  const [liveData, setLiveData] = useState<LiveData | null>(null);
+
   // Bible state
   const [bibleData, setBibleData] = useState<BibleBook[]>([]);
   const [loadingBible, setBibleLoading] = useState(true);
@@ -107,6 +124,46 @@ export default function VideosAndBible() {
     activeTab === "recent" ? recentVideos
     : activeTab === "livestream" ? LIVESTREAM_VIDEOS
     : PASTOR_DAVID_VIDEOS;
+
+  // Detect live stream — polls every 3 minutes
+  useEffect(() => {
+    const checkLive = async () => {
+      try {
+        const proxyUrl = `${CORS_PROXY}${encodeURIComponent(LIVE_PAGE_URL)}`;
+        const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(15000) });
+        if (!res.ok) { setIsLive(false); return; }
+
+        const html = await res.text();
+        const isLiveNow = html.includes('"isLive":true');
+        if (!isLiveNow) { setIsLive(false); return; }
+
+        // Extract video ID adjacent to "isLive":true
+        const videoIdMatch = html.match(
+          /"videoId":"([a-zA-Z0-9_-]{11})"[^}]{0,300}"isLive":true/
+        );
+        const videoId = videoIdMatch ? videoIdMatch[1] : null;
+
+        // Extract stream title from videoDetails
+        const titleMatch = html.match(
+          /"videoDetails":\{"videoId":"[^"]+","title":"([^"]+)"/
+        );
+        const title = titleMatch ? titleMatch[1] : "MEDES Church — En Vivo";
+
+        if (videoId) {
+          setLiveData({ videoId, title });
+          setIsLive(true);
+        } else {
+          setIsLive(false);
+        }
+      } catch {
+        setIsLive(false);
+      }
+    };
+
+    checkLive();
+    const interval = setInterval(checkLive, 3 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch latest YouTube videos via RSS
   useEffect(() => {
@@ -256,6 +313,62 @@ export default function VideosAndBible() {
             <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
           </a>
         </div>
+
+        {/* ── LIVE STREAM EMBED (only visible when live) ── */}
+        {isLive && liveData && (
+          <div className="mb-8 rounded-2xl overflow-hidden border border-red-500/40 shadow-2xl shadow-red-900/30"
+               style={{ animation: "fadeInDown 0.5s ease-out" }}>
+            <style>{`
+              @keyframes fadeInDown {
+                from { opacity: 0; transform: translateY(-12px); }
+                to   { opacity: 1; transform: translateY(0); }
+              }
+            `}</style>
+
+            {/* Live header bar */}
+            <div className="flex items-center justify-between px-4 py-2.5 bg-[#111] border-b border-red-500/30">
+              <div className="flex items-center gap-2.5">
+                {/* Pulsing dot */}
+                <div className="relative flex-shrink-0">
+                  <div className="w-2.5 h-2.5 bg-red-500 rounded-full" />
+                  <div className="absolute inset-0 w-2.5 h-2.5 bg-red-500 rounded-full animate-ping opacity-70" />
+                </div>
+                <span className="font-['Oswald'] font-700 text-red-500 text-xs uppercase tracking-widest">
+                  En Vivo Ahora
+                </span>
+                <span className="hidden sm:block w-px h-4 bg-white/15" />
+                <span className="hidden sm:block font-['Nunito_Sans'] text-white/70 text-sm truncate max-w-xs">
+                  {liveData.title}
+                </span>
+              </div>
+              <a
+                href={`https://www.youtube.com/watch?v=${liveData.videoId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-['Nunito_Sans'] font-700 text-xs transition-colors shadow-lg shadow-red-900/40 whitespace-nowrap"
+              >
+                <Radio className="w-3 h-3" />
+                Abrir en YouTube
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+
+            {/* Embedded live player */}
+            <div className="relative bg-black aspect-video">
+              <iframe
+                key={liveData.videoId}
+                src={`https://www.youtube.com/embed/${liveData.videoId}?autoplay=1&rel=0&modestbranding=1`}
+                title={liveData.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full"
+              />
+            </div>
+
+            {/* Bottom flame accent */}
+            <div className="h-0.5 bg-gradient-to-r from-red-600 via-red-400 to-red-600 animate-pulse" />
+          </div>
+        )}
 
         {/* Main Layout: Video + Bible */}
         <div className="flex flex-col xl:flex-row gap-6">
