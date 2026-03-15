@@ -91,9 +91,10 @@ const PASTOR_DAVID_VIDEOS: Video[] = [
 type VideoTab = "recent" | "live" | "pastor";
 
 export default function VideosAndBible() {
-  const [activeTab, setActiveTab] = useState<VideoTab>("recent");
+  // Default to Pastor David (most popular); switches to live if stream is detected
+  const [activeTab, setActiveTab] = useState<VideoTab>("pastor");
   const [recentVideos, setRecentVideos] = useState<Video[]>(RECENT_VIDEOS);
-  const [selectedVideo, setSelectedVideo] = useState<Video>(RECENT_VIDEOS[0]);
+  const [selectedVideo, setSelectedVideo] = useState<Video>(PASTOR_DAVID_VIDEOS[0]);
   const [loadingVideos, setLoadingVideos] = useState(true);
 
   // Live stream state
@@ -143,6 +144,8 @@ export default function VideosAndBible() {
         if (videoId) {
           setLiveData({ videoId, title });
           setIsLive(true);
+          // Auto-switch to live tab on first detection
+          setActiveTab("live");
         } else {
           setIsLive(false);
         }
@@ -188,7 +191,6 @@ export default function VideosAndBible() {
           });
         if (parsed.length > 0) {
           setRecentVideos(parsed);
-          if (activeTab === "recent") setSelectedVideo(parsed[0]);
         }
       } catch {
         // Use fallback
@@ -249,7 +251,7 @@ export default function VideosAndBible() {
 
   const handleTabChange = (tab: VideoTab) => {
     setActiveTab(tab);
-    if (tab === "recent") setSelectedVideo(recentVideos[0]);
+    if (tab === "recent") setSelectedVideo(recentVideos[0] ?? RECENT_VIDEOS[0]);
     if (tab === "pastor") setSelectedVideo(PASTOR_DAVID_VIDEOS[0]);
     // "live" tab uses the iframe directly — no selectedVideo needed
   };
