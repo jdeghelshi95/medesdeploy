@@ -13,7 +13,7 @@ const services = [
     day: "Domingo",
     abbrev: "DOM",
     services: [
-      { name: "8:30 AM", time: "8:30 AM", type: "" },
+      { name: "8:00 AM", time: "8:00 AM", type: "" },
       { name: "11:00 AM", time: "11:00 AM", type: "" },
       { name: "2:00 PM", time: "2:00 PM", type: "" },
     ],
