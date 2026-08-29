@@ -5,8 +5,7 @@
  */
 
 import { MapPin, Phone, Mail, ExternalLink, Navigation } from "lucide-react";
-
-const COMMUNITY_IMG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663419143126/P3xcbFesjEMNx5mGkkTWTm/medes-community-AvCzEMCA3jkvYqj5xZN4Nr.png";
+import COMMUNITY_IMG from "../assets/gallery/community-hands-raised.jpg";
 const CHURCH_CENTER_URL = "https://medes.churchcenter.com";
 
 export default function VisitSection() {

@@ -4,8 +4,8 @@
  * Asymmetric layout with flame accent elements
  */
 
-const VISION_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663419143126/P3xcbFesjEMNx5mGkkTWTm/medes-vision-bg-dZByrtgooawyVWCowwpEzQ.webp";
-const WORSHIP_IMG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663419143126/P3xcbFesjEMNx5mGkkTWTm/medes_worship_leader_16_0789e541.jpg";
+import VISION_BG from "../assets/gallery/vision-bg-worship-guitar.jpg";
+import WORSHIP_IMG from "../assets/gallery/worship-leader-singing.jpg";
 
 export default function VisionSection() {
   return (

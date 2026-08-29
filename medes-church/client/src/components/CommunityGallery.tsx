@@ -7,34 +7,39 @@
 
 import { motion } from "framer-motion";
 import { Instagram } from "lucide-react";
+import galleryWorship6 from "../assets/gallery/gallery-worship-6.jpg";
+import galleryPreaching10 from "../assets/gallery/gallery-preaching-10.jpg";
+import galleryWorshipLeader16 from "../assets/gallery/gallery-worship-leader-16.jpg";
+import galleryPastorPodium17 from "../assets/gallery/gallery-pastor-podium-17.jpg";
+import galleryCongregation19 from "../assets/gallery/gallery-congregation-19.jpg";
 
 const photos = [
   {
-    url: "https://d2xsxph8kpxj0f.cloudfront.net/310519663419143126/P3xcbFesjEMNx5mGkkTWTm/medes_worship_6_31e90a70.jpg",
+    url: galleryWorship6,
     caption: "Servicios Familiares",
     description: "Adoración y alabanza en comunidad",
     size: "large", // takes up 2 rows
   },
   {
-    url: "https://d2xsxph8kpxj0f.cloudfront.net/310519663419143126/P3xcbFesjEMNx5mGkkTWTm/medes_guitar_10_5075ac08.jpg",
+    url: galleryPreaching10,
     caption: "La Palabra",
     description: "Predicando con gozo y autoridad",
     size: "small",
   },
   {
-    url: "https://d2xsxph8kpxj0f.cloudfront.net/310519663419143126/P3xcbFesjEMNx5mGkkTWTm/medes_worship_leader_16_0789e541.jpg",
+    url: galleryWorshipLeader16,
     caption: "Alabanza",
     description: "Levantando voces al Señor",
     size: "small",
   },
   {
-    url: "https://d2xsxph8kpxj0f.cloudfront.net/310519663419143126/P3xcbFesjEMNx5mGkkTWTm/medes_pastor_podium_17_21110649.jpg",
+    url: galleryPastorPodium17,
     caption: "Pastor David",
     description: "Ministrando con amor y gracia",
     size: "medium",
   },
   {
-    url: "https://d2xsxph8kpxj0f.cloudfront.net/310519663419143126/P3xcbFesjEMNx5mGkkTWTm/medes_congregation_19_0bc21425.jpg",
+    url: galleryCongregation19,
     caption: "Nuestra Comunidad",
     description: "Unidos en fe y propósito",
     size: "medium",

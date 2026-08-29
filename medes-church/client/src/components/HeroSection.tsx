@@ -5,8 +5,7 @@
  */
 
 import { ChevronDown, Play, MapPin } from "lucide-react";
-
-const HERO_BG = "https://www.dropbox.com/scl/fi/ja664ebhtdj8lgidhgw4q/DSC_7218.jpg?rlkey=8inxb3dkpd65l4a87impieh2t&e=1&st=kb7gu2si&raw=1";
+import HERO_BG from "../assets/gallery/hero-vigil.jpg";
 const CHURCH_CENTER_URL = "https://medes.churchcenter.com";
 
 export default function HeroSection() {
