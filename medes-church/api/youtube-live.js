@@ -5,29 +5,50 @@
 
 const LIVE_PAGE_URL = "https://www.youtube.com/@medeschurch/live";
 
-// Extracts the raw "videoDetails":{...} object from the page as a string,
-// using brace counting rather than a fixed-size window or regex proximity —
-// both proved unreliable because the fields inside videoDetails vary in
-// order and length between broadcasts. Scoping strictly to this object also
-// avoids false positives from "isLive":true appearing elsewhere on the page
-// (e.g. other currently-live channels shown in sidebar recommendations).
-function extractVideoDetailsObject(html) {
+// The page contains two different "videoDetails": keys:
+//   1. ytInitialPlayerResponse.videoDetails — the real one, shaped like
+//      {"videoId":"...","title":"...", ..., "isLive":true, ...}
+//   2. a UI overlay structure nested under ytInitialData
+//      (playerOverlays...videoDetails.playerOverlayVideoDetailsRenderer),
+//      shaped like {"playerOverlayVideoDetailsRenderer":{"title":{"simpleText":
+//      "..."},...}} — no "videoId" key at all.
+// Which one appears first in the HTML isn't consistent, so scan every
+// "videoDetails":{...} occurrence (brace-matched, not a fixed window) and
+// use the first one whose object actually starts with a raw "videoId" key.
+function extractPlayerVideoDetails(html) {
   const marker = '"videoDetails":';
-  const idx = html.indexOf(marker);
-  if (idx === -1) return null;
+  let searchFrom = 0;
 
-  const braceStart = idx + marker.length;
-  if (html[braceStart] !== "{") return null;
+  while (true) {
+    const idx = html.indexOf(marker, searchFrom);
+    if (idx === -1) return null;
 
-  let depth = 0;
-  for (let i = braceStart; i < html.length; i++) {
-    if (html[i] === "{") depth++;
-    else if (html[i] === "}") {
-      depth--;
-      if (depth === 0) return html.slice(braceStart, i + 1);
+    const braceStart = idx + marker.length;
+    if (html[braceStart] !== "{") {
+      searchFrom = idx + marker.length;
+      continue;
     }
+
+    let depth = 0;
+    let end = -1;
+    for (let i = braceStart; i < html.length; i++) {
+      if (html[i] === "{") depth++;
+      else if (html[i] === "}") {
+        depth--;
+        if (depth === 0) {
+          end = i;
+          break;
+        }
+      }
+    }
+    if (end === -1) return null;
+
+    const candidate = html.slice(braceStart, end + 1);
+    if (/^\{"videoId":"[a-zA-Z0-9_-]{11}"/.test(candidate)) {
+      return candidate;
+    }
+    searchFrom = end + 1;
   }
-  return null;
 }
 
 export default async function handler(req, res) {
@@ -49,21 +70,14 @@ export default async function handler(req, res) {
     }
 
     const html = await upstream.text();
-    const videoDetails = extractVideoDetailsObject(html);
+    const videoDetails = extractPlayerVideoDetails(html);
 
     // videoDetails.isLive is only true while actively broadcasting — it's
     // absent (or false) for an upcoming/waiting-room stream that hasn't
     // started yet, which is what "isUpcoming":true elsewhere on the page
     // indicates.
     if (!videoDetails || !videoDetails.includes('"isLive":true')) {
-      res.status(200).json({
-        isLive: false,
-        debug: {
-          htmlLength: html.length,
-          videoDetailsFound: !!videoDetails,
-          videoDetailsSnippet: videoDetails ? videoDetails.slice(0, 400) : null,
-        },
-      });
+      res.status(200).json({ isLive: false });
       return;
     }
 
