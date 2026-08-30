@@ -56,7 +56,14 @@ export default async function handler(req, res) {
     // started yet, which is what "isUpcoming":true elsewhere on the page
     // indicates.
     if (!videoDetails || !videoDetails.includes('"isLive":true')) {
-      res.status(200).json({ isLive: false });
+      res.status(200).json({
+        isLive: false,
+        debug: {
+          htmlLength: html.length,
+          videoDetailsFound: !!videoDetails,
+          videoDetailsSnippet: videoDetails ? videoDetails.slice(0, 400) : null,
+        },
+      });
       return;
     }
 
