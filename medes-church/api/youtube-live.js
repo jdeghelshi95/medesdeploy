@@ -25,25 +25,23 @@ export default async function handler(req, res) {
 
     const html = await upstream.text();
     if (!html.includes('"isLive":true')) {
-      if (req.query && req.query.debug) {
-        const knownVideoIdIdx = html.indexOf("xcdyx33GHrE");
-        const isLiveOccurrences = (html.match(/"isLive"/g) || []).length;
-        const canonicalMatch = html.match(/<link rel="canonical" href="([^"]+)"/);
-        const ogTitleMatch = html.match(/<meta property="og:title" content="([^"]*)"/);
-        res.status(200).json({
-          isLive: false,
-          debug: {
-            htmlLength: html.length,
-            isLiveOccurrences,
-            knownVideoIdFound: knownVideoIdIdx !== -1,
-            knownVideoIdContext: knownVideoIdIdx !== -1 ? html.slice(Math.max(0, knownVideoIdIdx - 100), knownVideoIdIdx + 300) : null,
-            canonical: canonicalMatch ? canonicalMatch[1] : null,
-            ogTitle: ogTitleMatch ? ogTitleMatch[1] : null,
-          },
-        });
-        return;
-      }
-      res.status(200).json({ isLive: false });
+      const knownVideoIdIdx = html.indexOf("xcdyx33GHrE");
+      const isLiveOccurrences = (html.match(/"isLive"/g) || []).length;
+      const canonicalMatch = html.match(/<link rel="canonical" href="([^"]+)"/);
+      const ogTitleMatch = html.match(/<meta property="og:title" content="([^"]*)"/);
+      res.status(200).json({
+        isLive: false,
+        debug: {
+          reqUrl: req.url,
+          reqQuery: req.query || null,
+          htmlLength: html.length,
+          isLiveOccurrences,
+          knownVideoIdFound: knownVideoIdIdx !== -1,
+          knownVideoIdContext: knownVideoIdIdx !== -1 ? html.slice(Math.max(0, knownVideoIdIdx - 100), knownVideoIdIdx + 300) : null,
+          canonical: canonicalMatch ? canonicalMatch[1] : null,
+          ogTitle: ogTitleMatch ? ogTitleMatch[1] : null,
+        },
+      });
       return;
     }
 
