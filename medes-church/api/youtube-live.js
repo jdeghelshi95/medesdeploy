@@ -29,25 +29,20 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Anchor videoId + title extraction to the videoDetails object itself
-    // (rather than searching for proximity to "isLive":true elsewhere on the
-    // page, e.g. in sidebar/related videos that may also be live) so it
-    // reliably matches regardless of minor variance in YouTube's page HTML.
+    // The /@handle/live page's primary videoDetails object is the live
+    // broadcast itself, so just read videoId + title off the start of it.
+    // (Not anchoring to "isLive":true's position: the fields between title
+    // and isLive vary in order/length — e.g. a long shortDescription can
+    // push isLive well past any fixed-size window — and we already know
+    // isLive:true is present somewhere on the page from the check above.)
     const videoDetailsMatch = html.match(
-      /"videoDetails":\{"videoId":"([a-zA-Z0-9_-]{11})","title":"([^"]+)"[\s\S]{0,500}?"isLive":true/
+      /"videoDetails":\{"videoId":"([a-zA-Z0-9_-]{11})","title":"([^"]+)"/
     );
     const videoId = videoDetailsMatch ? videoDetailsMatch[1] : null;
     const title = videoDetailsMatch ? videoDetailsMatch[2] : "MEDES Church — En Vivo";
 
     if (!videoId) {
-      const vdIdx = html.indexOf('"videoDetails":{');
-      res.status(200).json({
-        isLive: false,
-        debug: {
-          reason: "videoDetails regex did not match",
-          videoDetailsContext: vdIdx !== -1 ? html.slice(vdIdx, vdIdx + 500) : "videoDetails not found",
-        },
-      });
+      res.status(200).json({ isLive: false });
       return;
     }
 
