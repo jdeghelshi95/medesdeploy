@@ -85,6 +85,7 @@ export default async function handler(req, res) {
         occurrences.push(html.slice(i, i + 60));
         searchFrom = i + 15;
       }
+      const playabilityIdx = html.indexOf('"playabilityStatus"');
       res.status(200).json({
         isLive: false,
         debug: {
@@ -95,6 +96,7 @@ export default async function handler(req, res) {
           videoDetailsOccurrences: occurrences,
           finalUrl: upstream.url,
           upstreamRedirected: upstream.redirected,
+          playabilityStatusContext: playabilityIdx !== -1 ? html.slice(playabilityIdx, playabilityIdx + 300) : "not found",
         },
       });
       return;
