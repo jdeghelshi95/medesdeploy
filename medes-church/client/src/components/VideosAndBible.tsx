@@ -5,7 +5,7 @@
  * Bible: Spanish book names mapped over English dataset
  *
  * Live Stream tab behaviour:
- *   - Polls @medeschurch/live every 3 minutes via CORS proxy
+ *   - Polls /api/youtube-live every 3 minutes (server-side check, no CORS proxy)
  *   - Tab is completely hidden when the channel is not live
  *   - Tab appears (with pulsing dot) only while a stream is active
  *   - Clicking the tab embeds the live stream directly in the main player
@@ -17,10 +17,7 @@ import {
   ExternalLink, Youtube, ChevronDown, User, Clock
 } from "lucide-react";
 
-const CHANNEL_ID = "UCbKclBCuOtMyYl7W853ZcuA";
 const CHANNEL_URL = "https://www.youtube.com/@medeschurch";
-const LIVE_PAGE_URL = "https://www.youtube.com/@medeschurch/live";
-const CORS_PROXY = "https://api.codetabs.com/v1/proxy?quest=";
 const BIBLE_API = "https://raw.githubusercontent.com/thiagobodruk/bible/master/json/es_rvr.json";
 
 interface Video {
@@ -112,43 +109,27 @@ export default function VideosAndBible() {
   const verseListRef = useRef<HTMLDivElement>(null);
   const verseRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
-  // Detect live stream — polls every 3 minutes
+  // Detect live stream — polls every 3 minutes via our own /api/youtube-live
+  // serverless function (checks server-side, no CORS proxy needed)
   useEffect(() => {
     const checkLive = async () => {
       try {
-        const proxyUrl = `${CORS_PROXY}${encodeURIComponent(LIVE_PAGE_URL)}`;
-        const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(15000) });
+        const res = await fetch("/api/youtube-live", { signal: AbortSignal.timeout(12000) });
         if (!res.ok) { setIsLive(false); return; }
 
-        const html = await res.text();
-        const isLiveNow = html.includes('"isLive":true');
-        if (!isLiveNow) {
+        const data: { isLive: boolean; videoId?: string; title?: string } = await res.json();
+
+        if (!data.isLive || !data.videoId) {
           // If we were on the live tab, switch back to recent
           setActiveTab((prev) => (prev === "live" ? "recent" : prev));
           setIsLive(false);
           return;
         }
 
-        // Extract video ID adjacent to "isLive":true
-        const videoIdMatch = html.match(
-          /"videoId":"([a-zA-Z0-9_-]{11})"[^}]{0,300}"isLive":true/
-        );
-        const videoId = videoIdMatch ? videoIdMatch[1] : null;
-
-        // Extract stream title from videoDetails
-        const titleMatch = html.match(
-          /"videoDetails":\{"videoId":"[^"]+","title":"([^"]+)"/
-        );
-        const title = titleMatch ? titleMatch[1] : "MEDES Church — En Vivo";
-
-        if (videoId) {
-          setLiveData({ videoId, title });
-          setIsLive(true);
-          // Auto-switch to live tab on first detection
-          setActiveTab("live");
-        } else {
-          setIsLive(false);
-        }
+        setLiveData({ videoId: data.videoId, title: data.title || "MEDES Church — En Vivo" });
+        setIsLive(true);
+        // Auto-switch to live tab on first detection
+        setActiveTab("live");
       } catch {
         setIsLive(false);
       }
@@ -159,38 +140,14 @@ export default function VideosAndBible() {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch latest YouTube videos via RSS
+  // Fetch latest YouTube videos via our own /api/youtube-recent serverless function
   useEffect(() => {
     const fetchVideos = async () => {
       try {
-        const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`;
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`;
-        const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
-        const data = await res.json();
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(data.contents, "text/xml");
-        const entries = xml.querySelectorAll("entry");
-        const parsed: Video[] = Array.from(entries)
-          .slice(0, 5)
-          .map((entry) => {
-            const videoId = entry.querySelector("videoId")?.textContent || "";
-            const title = entry.querySelector("title")?.textContent || "";
-            const published = entry.querySelector("published")?.textContent || "";
-            const link = entry.querySelector("link")?.getAttribute("href") || "";
-            const thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
-            const date = new Date(published);
-            const now = new Date();
-            const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-            const timeAgo =
-              diffDays < 1 ? "Hoy"
-              : diffDays < 7 ? `Hace ${diffDays} días`
-              : diffDays < 30 ? `Hace ${Math.floor(diffDays / 7)} semanas`
-              : diffDays < 365 ? `Hace ${Math.floor(diffDays / 30)} meses`
-              : `Hace ${Math.floor(diffDays / 365)} años`;
-            return { id: videoId, title, thumbnail, published: timeAgo, link };
-          });
-        if (parsed.length > 0) {
-          setRecentVideos(parsed);
+        const res = await fetch("/api/youtube-recent", { signal: AbortSignal.timeout(10000) });
+        const data: { videos: Video[] } = await res.json();
+        if (data.videos && data.videos.length > 0) {
+          setRecentVideos(data.videos);
         }
       } catch {
         // Use fallback

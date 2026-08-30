@@ -4,15 +4,10 @@
  * Shows a pulsing banner only when live; completely hidden otherwise.
  *
  * Detection strategy:
- *   1. Fetch https://www.youtube.com/@medeschurch/live via api.codetabs.com CORS proxy
- *   2. Parse "isLive":true from the embedded page JSON to confirm live status
- *   3. Extract videoId and title from videoDetails in the same page JSON
- *   4. Build thumbnail URL directly: https://i.ytimg.com/vi/{videoId}/hqdefault.jpg
- *
- * Why the old approach failed:
- *   - YouTube's oEmbed endpoint returns 404 for /@handle/live URLs even when the
- *     channel IS live. It only works with direct watch?v= video URLs.
- *   - allorigins.win was returning HTTP 500 errors intermittently.
+ *   Calls our own /api/youtube-live serverless function, which fetches
+ *   https://www.youtube.com/@medeschurch/live server-side (no CORS proxy
+ *   needed) and parses "isLive":true / videoId / title from the embedded
+ *   page JSON.
  *
  * Polls every 3 minutes.
  */
@@ -24,7 +19,6 @@ const DEMO_MODE = false;
 
 const CHANNEL_HANDLE = "medeschurch";
 const LIVE_PAGE_URL = `https://www.youtube.com/@${CHANNEL_HANDLE}/live`;
-const CORS_PROXY = "https://api.codetabs.com/v1/proxy?quest=";
 
 interface LiveData {
   title: string;
@@ -52,37 +46,22 @@ export default function LiveStreamBanner() {
       }
 
       try {
-        const proxyUrl = `${CORS_PROXY}${encodeURIComponent(LIVE_PAGE_URL)}`;
-        const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(15000) });
+        const res = await fetch("/api/youtube-live", { signal: AbortSignal.timeout(12000) });
 
         if (!res.ok) {
           setIsLive(false);
           return;
         }
 
-        const html = await res.text();
+        const data: { isLive: boolean; videoId?: string; title?: string } = await res.json();
 
-        // Check for live flag in the embedded YouTube page JSON
-        const isLiveNow = html.includes('"isLive":true');
-
-        if (!isLiveNow) {
+        if (!data.isLive) {
           setIsLive(false);
           return;
         }
 
-        // Extract the video ID that is adjacent to "isLive":true
-        const videoIdMatch = html.match(
-          /"videoId":"([a-zA-Z0-9_-]{11})"[^}]{0,300}"isLive":true/
-        );
-        const videoId = videoIdMatch ? videoIdMatch[1] : null;
-
-        // Extract the stream title from videoDetails
-        const titleMatch = html.match(
-          /"videoDetails":\{"videoId":"[^"]+","title":"([^"]+)"/
-        );
-        const title = titleMatch
-          ? titleMatch[1]
-          : "MEDES Church está en vivo ahora";
+        const videoId = data.videoId ?? null;
+        const title = data.title || "MEDES Church está en vivo ahora";
 
         setLiveData({
           title,
