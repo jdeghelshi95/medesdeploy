@@ -3,20 +3,13 @@
 // dependency on third-party CORS-proxy services (which is what broke this
 // originally: api.codetabs.com became unreachable).
 //
-// Two-step approach:
-//   1. Fetch the /@handle/live page just to read the canonical <link> tag,
-//      which names the current (live, upcoming, or most recent) video ID.
-//      This is plain page head metadata, not the gated player payload.
-//   2. Ask YouTube's own internal player endpoint (the same JSON API
-//      youtube.com's web client calls) whether THAT video is live right
-//      now. This is what actually determines isLive — the SSR page's own
-//      embedded player JSON was dropped by YouTube for a chunk of
-//      requests from datacenter IPs ("Sign in to confirm you're not a
-//      bot" / playabilityStatus LOGIN_REQUIRED), but this JSON endpoint
-//      has held up reliably in testing even when that happens, since it's
-//      a different code path than the bot-walled watch-page render.
-//      Uses YouTube's public, non-secret web client API key (the same one
-//      shipped to every browser loading youtube.com).
+// NOTE: YouTube intermittently bot-walls this from Vercel's server IP range
+// ("Sign in to confirm you're not a bot" / playabilityStatus LOGIN_REQUIRED).
+// This affects both the SSR /live page and YouTube's internal player JSON
+// endpoint equally, so there is currently no scraping technique that avoids
+// it reliably. When blocked, this silently degrades to isLive:false rather
+// than erroring. See project notes for the tradeoffs of moving to the
+// official (quota-limited) YouTube Data API instead.
 
 const LIVE_PAGE_URL = "https://www.youtube.com/@medeschurch/live";
 const INNERTUBE_KEY = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
@@ -40,25 +33,21 @@ async function getCandidateVideoId() {
   return canonicalMatch ? canonicalMatch[1] : null;
 }
 
-async function getVideoLiveStatus(videoId, clientName) {
-  const body =
-    clientName === "WEB_EMBEDDED_PLAYER"
-      ? {
-          context: {
-            client: { clientName, clientVersion: "1.20240101.00.00", hl: "en", gl: "US" },
-            thirdParty: { embedUrl: "https://www.medeschurch.com/" },
-          },
-          videoId,
-        }
-      : {
-          context: { client: { clientName, clientVersion: "2.20240101.00.00", hl: "en", gl: "US" } },
-          videoId,
-        };
-
+async function getVideoLiveStatus(videoId) {
   const res = await fetch(INNERTUBE_PLAYER_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      context: {
+        client: {
+          clientName: "WEB",
+          clientVersion: "2.20240101.00.00",
+          hl: "en",
+          gl: "US",
+        },
+      },
+      videoId,
+    }),
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) return null;
@@ -69,30 +58,16 @@ export default async function handler(req, res) {
   res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=30");
 
   try {
-    const videoId = (req.query && req.query.__testVideoId) || (await getCandidateVideoId());
+    const videoId = await getCandidateVideoId();
     if (!videoId) {
       res.status(200).json({ isLive: false });
       return;
     }
 
-    const clientName = (req.query && req.query.__client) || "WEB";
-    const data = await getVideoLiveStatus(videoId, clientName);
+    const data = await getVideoLiveStatus(videoId);
     const details = data?.videoDetails;
 
     if (!details || details.isLive !== true) {
-      if (req.query && req.query.__debug) {
-        res.status(200).json({
-          isLive: false,
-          debug: {
-            videoId,
-            clientName,
-            hasData: !!data,
-            playabilityStatus: data?.playabilityStatus,
-            videoDetails: details || null,
-          },
-        });
-        return;
-      }
       res.status(200).json({ isLive: false });
       return;
     }
