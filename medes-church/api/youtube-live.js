@@ -40,21 +40,25 @@ async function getCandidateVideoId() {
   return canonicalMatch ? canonicalMatch[1] : null;
 }
 
-async function getVideoLiveStatus(videoId) {
+async function getVideoLiveStatus(videoId, clientName) {
+  const body =
+    clientName === "WEB_EMBEDDED_PLAYER"
+      ? {
+          context: {
+            client: { clientName, clientVersion: "1.20240101.00.00", hl: "en", gl: "US" },
+            thirdParty: { embedUrl: "https://www.medeschurch.com/" },
+          },
+          videoId,
+        }
+      : {
+          context: { client: { clientName, clientVersion: "2.20240101.00.00", hl: "en", gl: "US" } },
+          videoId,
+        };
+
   const res = await fetch(INNERTUBE_PLAYER_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      context: {
-        client: {
-          clientName: "WEB",
-          clientVersion: "2.20240101.00.00",
-          hl: "en",
-          gl: "US",
-        },
-      },
-      videoId,
-    }),
+    body: JSON.stringify(body),
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) return null;
@@ -71,7 +75,8 @@ export default async function handler(req, res) {
       return;
     }
 
-    const data = await getVideoLiveStatus(videoId);
+    const clientName = (req.query && req.query.__client) || "WEB";
+    const data = await getVideoLiveStatus(videoId, clientName);
     const details = data?.videoDetails;
 
     if (!details || details.isLive !== true) {
@@ -80,6 +85,7 @@ export default async function handler(req, res) {
           isLive: false,
           debug: {
             videoId,
+            clientName,
             hasData: !!data,
             playabilityStatus: data?.playabilityStatus,
             videoDetails: details || null,
