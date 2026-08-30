@@ -77,7 +77,26 @@ export default async function handler(req, res) {
     // started yet, which is what "isUpcoming":true elsewhere on the page
     // indicates.
     if (!videoDetails || !videoDetails.includes('"isLive":true')) {
-      res.status(200).json({ isLive: false });
+      const occurrences = [];
+      let searchFrom = 0;
+      while (occurrences.length < 6) {
+        const i = html.indexOf('"videoDetails":', searchFrom);
+        if (i === -1) break;
+        occurrences.push(html.slice(i, i + 60));
+        searchFrom = i + 15;
+      }
+      res.status(200).json({
+        isLive: false,
+        debug: {
+          htmlLength: html.length,
+          hasYtInitialPlayerResponse: html.includes("ytInitialPlayerResponse"),
+          hasYtInitialData: html.includes("ytInitialData"),
+          videoDetailsOccurrenceCount: occurrences.length,
+          videoDetailsOccurrences: occurrences,
+          finalUrl: upstream.url,
+          upstreamRedirected: upstream.redirected,
+        },
+      });
       return;
     }
 
