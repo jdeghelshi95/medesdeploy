@@ -25,38 +25,29 @@ export default async function handler(req, res) {
 
     const html = await upstream.text();
     if (!html.includes('"isLive":true')) {
-      const knownVideoIdIdx = html.indexOf("xcdyx33GHrE");
-      const isLiveOccurrences = (html.match(/"isLive"/g) || []).length;
-      const canonicalMatch = html.match(/<link rel="canonical" href="([^"]+)"/);
-      const ogTitleMatch = html.match(/<meta property="og:title" content="([^"]*)"/);
-      res.status(200).json({
-        isLive: false,
-        debug: {
-          reqUrl: req.url,
-          reqQuery: req.query || null,
-          htmlLength: html.length,
-          isLiveOccurrences,
-          knownVideoIdFound: knownVideoIdIdx !== -1,
-          knownVideoIdContext: knownVideoIdIdx !== -1 ? html.slice(Math.max(0, knownVideoIdIdx - 100), knownVideoIdIdx + 300) : null,
-          canonical: canonicalMatch ? canonicalMatch[1] : null,
-          ogTitle: ogTitleMatch ? ogTitleMatch[1] : null,
-        },
-      });
+      res.status(200).json({ isLive: false });
       return;
     }
 
-    const videoIdMatch = html.match(
-      /"videoId":"([a-zA-Z0-9_-]{11})"[^}]{0,300}"isLive":true/
+    // Anchor videoId + title extraction to the videoDetails object itself
+    // (rather than searching for proximity to "isLive":true elsewhere on the
+    // page, e.g. in sidebar/related videos that may also be live) so it
+    // reliably matches regardless of minor variance in YouTube's page HTML.
+    const videoDetailsMatch = html.match(
+      /"videoDetails":\{"videoId":"([a-zA-Z0-9_-]{11})","title":"([^"]+)"[\s\S]{0,500}?"isLive":true/
     );
-    const videoId = videoIdMatch ? videoIdMatch[1] : null;
-
-    const titleMatch = html.match(
-      /"videoDetails":\{"videoId":"[^"]+","title":"([^"]+)"/
-    );
-    const title = titleMatch ? titleMatch[1] : "MEDES Church — En Vivo";
+    const videoId = videoDetailsMatch ? videoDetailsMatch[1] : null;
+    const title = videoDetailsMatch ? videoDetailsMatch[2] : "MEDES Church — En Vivo";
 
     if (!videoId) {
-      res.status(200).json({ isLive: false });
+      const vdIdx = html.indexOf('"videoDetails":{');
+      res.status(200).json({
+        isLive: false,
+        debug: {
+          reason: "videoDetails regex did not match",
+          videoDetailsContext: vdIdx !== -1 ? html.slice(vdIdx, vdIdx + 500) : "videoDetails not found",
+        },
+      });
       return;
     }
 
