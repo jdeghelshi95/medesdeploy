@@ -2,6 +2,13 @@
 // is currently live. Runs server-side so there's no CORS issue and no
 // dependency on third-party CORS-proxy services (which is what broke this
 // before: api.codetabs.com became unreachable).
+//
+// NOTE: YouTube intermittently bot-walls this scrape from Vercel's server
+// IP range ("Sign in to confirm you're not a bot" / playabilityStatus
+// LOGIN_REQUIRED), which silently degrades this to a false "not live". This
+// is a known limitation of scraping from a datacenter IP, not a parsing
+// bug — see the project's YOUTUBE_LIVE_NOTES for the plan to move to the
+// official YouTube Data API.
 
 const LIVE_PAGE_URL = "https://www.youtube.com/@medeschurch/live";
 
@@ -72,33 +79,8 @@ export default async function handler(req, res) {
     const html = await upstream.text();
     const videoDetails = extractPlayerVideoDetails(html);
 
-    // videoDetails.isLive is only true while actively broadcasting — it's
-    // absent (or false) for an upcoming/waiting-room stream that hasn't
-    // started yet, which is what "isUpcoming":true elsewhere on the page
-    // indicates.
     if (!videoDetails || !videoDetails.includes('"isLive":true')) {
-      const occurrences = [];
-      let searchFrom = 0;
-      while (occurrences.length < 6) {
-        const i = html.indexOf('"videoDetails":', searchFrom);
-        if (i === -1) break;
-        occurrences.push(html.slice(i, i + 60));
-        searchFrom = i + 15;
-      }
-      const playabilityIdx = html.indexOf('"playabilityStatus"');
-      res.status(200).json({
-        isLive: false,
-        debug: {
-          htmlLength: html.length,
-          hasYtInitialPlayerResponse: html.includes("ytInitialPlayerResponse"),
-          hasYtInitialData: html.includes("ytInitialData"),
-          videoDetailsOccurrenceCount: occurrences.length,
-          videoDetailsOccurrences: occurrences,
-          finalUrl: upstream.url,
-          upstreamRedirected: upstream.redirected,
-          playabilityStatusContext: playabilityIdx !== -1 ? html.slice(playabilityIdx, playabilityIdx + 300) : "not found",
-        },
-      });
+      res.status(200).json({ isLive: false });
       return;
     }
 
