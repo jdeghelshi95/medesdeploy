@@ -75,6 +75,18 @@ export default async function handler(req, res) {
     const details = data?.videoDetails;
 
     if (!details || details.isLive !== true) {
+      if (req.query && req.query.__debug) {
+        res.status(200).json({
+          isLive: false,
+          debug: {
+            videoId,
+            hasData: !!data,
+            playabilityStatus: data?.playabilityStatus,
+            videoDetails: details || null,
+          },
+        });
+        return;
+      }
       res.status(200).json({ isLive: false });
       return;
     }
