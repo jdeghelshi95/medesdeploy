@@ -5,6 +5,31 @@
 
 const LIVE_PAGE_URL = "https://www.youtube.com/@medeschurch/live";
 
+// Extracts the raw "videoDetails":{...} object from the page as a string,
+// using brace counting rather than a fixed-size window or regex proximity —
+// both proved unreliable because the fields inside videoDetails vary in
+// order and length between broadcasts. Scoping strictly to this object also
+// avoids false positives from "isLive":true appearing elsewhere on the page
+// (e.g. other currently-live channels shown in sidebar recommendations).
+function extractVideoDetailsObject(html) {
+  const marker = '"videoDetails":';
+  const idx = html.indexOf(marker);
+  if (idx === -1) return null;
+
+  const braceStart = idx + marker.length;
+  if (html[braceStart] !== "{") return null;
+
+  let depth = 0;
+  for (let i = braceStart; i < html.length; i++) {
+    if (html[i] === "{") depth++;
+    else if (html[i] === "}") {
+      depth--;
+      if (depth === 0) return html.slice(braceStart, i + 1);
+    }
+  }
+  return null;
+}
+
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=30");
 
@@ -24,22 +49,21 @@ export default async function handler(req, res) {
     }
 
     const html = await upstream.text();
-    if (!html.includes('"isLive":true')) {
+    const videoDetails = extractVideoDetailsObject(html);
+
+    // videoDetails.isLive is only true while actively broadcasting — it's
+    // absent (or false) for an upcoming/waiting-room stream that hasn't
+    // started yet, which is what "isUpcoming":true elsewhere on the page
+    // indicates.
+    if (!videoDetails || !videoDetails.includes('"isLive":true')) {
       res.status(200).json({ isLive: false });
       return;
     }
 
-    // The /@handle/live page's primary videoDetails object is the live
-    // broadcast itself, so just read videoId + title off the start of it.
-    // (Not anchoring to "isLive":true's position: the fields between title
-    // and isLive vary in order/length — e.g. a long shortDescription can
-    // push isLive well past any fixed-size window — and we already know
-    // isLive:true is present somewhere on the page from the check above.)
-    const videoDetailsMatch = html.match(
-      /"videoDetails":\{"videoId":"([a-zA-Z0-9_-]{11})","title":"([^"]+)"/
-    );
-    const videoId = videoDetailsMatch ? videoDetailsMatch[1] : null;
-    const title = videoDetailsMatch ? videoDetailsMatch[2] : "MEDES Church — En Vivo";
+    const videoIdMatch = videoDetails.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+    const titleMatch = videoDetails.match(/"title":"([^"]+)"/);
+    const videoId = videoIdMatch ? videoIdMatch[1] : null;
+    const title = titleMatch ? titleMatch[1] : "MEDES Church — En Vivo";
 
     if (!videoId) {
       res.status(200).json({ isLive: false });
