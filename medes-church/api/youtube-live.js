@@ -25,6 +25,18 @@ export default async function handler(req, res) {
 
     const html = await upstream.text();
     if (!html.includes('"isLive":true')) {
+      if (req.query && req.query.debug) {
+        res.status(200).json({
+          isLive: false,
+          debug: {
+            htmlLength: html.length,
+            hasConsent: html.includes("consent.youtube.com") || html.includes("Before you continue"),
+            hasCaptcha: html.toLowerCase().includes("captcha") || html.toLowerCase().includes("unusual traffic"),
+            snippet: html.slice(0, 500),
+          },
+        });
+        return;
+      }
       res.status(200).json({ isLive: false });
       return;
     }
